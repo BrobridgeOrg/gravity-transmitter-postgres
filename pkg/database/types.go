@@ -7,4 +7,5 @@ import (
 type Writer interface {
 	Init() error
 	ProcessData(*transmitter.Record) error
+	Truncate(string) error
 }

@@ -42,3 +42,19 @@ func (service *Service) Send(ctx context.Context, in *pb.Record) (*pb.SendReply,
 		Success: true,
 	}, nil
 }
+
+func (service *Service) Truncate(ctx context.Context, in *pb.TruncateRequest) (*pb.TruncateReply, error) {
+
+	writer := service.app.GetWriter()
+	err := writer.Truncate(in.Table)
+	if err != nil {
+		return &pb.TruncateReply{
+			Success: false,
+			Reason:  err.Error(),
+		}, nil
+	}
+
+	return &pb.TruncateReply{
+		Success: true,
+	}, nil
+}
