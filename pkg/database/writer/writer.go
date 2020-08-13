@@ -117,11 +117,15 @@ func (writer *Writer) run() {
 
 func (writer *Writer) ProcessData(record *transmitter.Record) error {
 
-	if record.Method == "delete" {
+	switch record.Method {
+	case transmitter.Method_DELETE:
 		return writer.DeleteRecord(record)
+	case transmitter.Method_UPDATE:
+		return writer.UpdateRecord(record)
+	case transmitter.Method_INSERT:
 	}
 
-	return writer.UpdateRecord(record)
+	return nil
 }
 
 func (writer *Writer) GetValue(value *transmitter.Value) interface{} {
@@ -179,6 +183,13 @@ func (writer *Writer) GetDefinition(record *transmitter.Record) *RecordDef {
 	return recordDef
 }
 
+func (writer *Writer) InsertRecord(record *transmitter.Record) error {
+
+	recordDef := writer.GetDefinition(record)
+
+	return writer.insert(record.Table, recordDef)
+}
+
 func (writer *Writer) UpdateRecord(record *transmitter.Record) error {
 
 	recordDef := writer.GetDefinition(record)
@@ -193,6 +204,7 @@ func (writer *Writer) UpdateRecord(record *transmitter.Record) error {
 	if err != nil {
 		return err
 	}
+
 	_, err = writer.update(record.Table, recordDef)
 	if err != nil {
 		return err
