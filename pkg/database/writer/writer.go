@@ -1,6 +1,7 @@
 package writer
 
 import (
+	"encoding/binary"
 	"fmt"
 	"strconv"
 	"strings"
@@ -106,7 +107,10 @@ func (writer *Writer) run() {
 	for {
 		select {
 		case cmd := <-writer.commands:
-			writer.db.NamedExec(cmd.QueryStr, cmd.Args)
+			_, err := writer.db.NamedExec(cmd.QueryStr, cmd.Args)
+			if err != nil {
+				log.Error(err)
+			}
 		}
 	}
 }
@@ -120,6 +124,25 @@ func (writer *Writer) ProcessData(record *transmitter.Record) error {
 	return writer.UpdateRecord(record)
 }
 
+func (writer *Writer) GetValue(value *transmitter.Value) interface{} {
+
+	switch value.Type {
+	case transmitter.DataType_FLOAT64:
+		return float64(binary.LittleEndian.Uint64(value.Value))
+	case transmitter.DataType_INT64:
+		return int64(binary.LittleEndian.Uint64(value.Value))
+	case transmitter.DataType_UINT64:
+		return uint64(binary.LittleEndian.Uint64(value.Value))
+	case transmitter.DataType_BOOLEAN:
+		return int8(value.Value[0]) & 1
+	case transmitter.DataType_STRING:
+		return string(value.Value)
+	}
+
+	// binary
+	return value.Value
+}
+
 func (writer *Writer) GetDefinition(record *transmitter.Record) *RecordDef {
 
 	recordDef := &RecordDef{
@@ -131,9 +154,11 @@ func (writer *Writer) GetDefinition(record *transmitter.Record) *RecordDef {
 	// Scanning fields
 	for n, field := range record.Fields {
 
+		value := writer.GetValue(field.Value)
+
 		// Primary key
 		if field.IsPrimary == true {
-			recordDef.Values["primary_val"] = field.Value
+			recordDef.Values["primary_val"] = value
 			recordDef.HasPrimary = true
 			recordDef.PrimaryColumn = field.Name
 			continue
@@ -141,7 +166,7 @@ func (writer *Writer) GetDefinition(record *transmitter.Record) *RecordDef {
 
 		// Generate binding name
 		bindingName := fmt.Sprintf("val_%s", strconv.Itoa(n))
-		recordDef.Values[bindingName] = field.Value
+		recordDef.Values[bindingName] = value
 
 		// Store definition
 		recordDef.ColumnDefs = append(recordDef.ColumnDefs, &ColumnDef{
@@ -185,12 +210,14 @@ func (writer *Writer) DeleteRecord(record *transmitter.Record) error {
 		// Primary key
 		if field.IsPrimary == true {
 
+			value := writer.GetValue(field.Value)
+
 			sqlStr := fmt.Sprintf(template, record.Table, field.Name)
 
 			writer.commands <- &DBCommand{
 				QueryStr: sqlStr,
 				Args: map[string]interface{}{
-					"primary_val": field.Value,
+					"primary_val": value,
 				},
 			}
 
