@@ -265,13 +265,13 @@ func (writer *Writer) update(table string, recordDef *RecordDef) (bool, error) {
 
 func (writer *Writer) insert(table string, recordDef *RecordDef) error {
 
-	// Insert a new record
-	colNames := []string{
-		recordDef.PrimaryColumn,
-	}
-	valNames := []string{
-		":primary_val",
-	}
+	paramLength := len(recordDef.ColumnDefs) + 1
+
+	// Allocation
+	colNames := make([]string, 0, paramLength)
+	colNames = append(colNames, recordDef.PrimaryColumn)
+	valNames := make([]string, 0, paramLength)
+	valNames = append(valNames, ":primary_val")
 
 	// Preparing columns and bindings
 	for _, def := range recordDef.ColumnDefs {
