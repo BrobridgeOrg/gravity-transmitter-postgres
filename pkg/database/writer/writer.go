@@ -13,6 +13,12 @@ import (
 	"github.com/spf13/viper"
 )
 
+var (
+	UpdateTemplate = `UPDATE "%s" SET %s WHERE "%s" = :primary_val`
+	InsertTemplate = `INSERT INTO "%s" (%s) VALUES (%s)`
+	DeleteTemplate = `DELETE FROM "%s" WHERE "%s" = :primary_val`
+)
+
 type DatabaseInfo struct {
 	Host     string `json:"host"`
 	Port     int    `json:"port"`
@@ -215,8 +221,6 @@ func (writer *Writer) UpdateRecord(record *transmitter.Record) error {
 
 func (writer *Writer) DeleteRecord(record *transmitter.Record) error {
 
-	template := `DELETE FROM "%s" WHERE "%s" = :primary_val`
-
 	for _, field := range record.Fields {
 
 		// Primary key
@@ -224,7 +228,7 @@ func (writer *Writer) DeleteRecord(record *transmitter.Record) error {
 
 			value := writer.GetValue(field.Value)
 
-			sqlStr := fmt.Sprintf(template, record.Table, field.Name)
+			sqlStr := fmt.Sprintf(DeleteTemplate, record.Table, field.Name)
 
 			writer.commands <- &DBCommand{
 				QueryStr: sqlStr,
@@ -244,13 +248,12 @@ func (writer *Writer) update(table string, recordDef *RecordDef) (bool, error) {
 
 	// Preparing SQL string
 	updates := make([]string, 0, len(recordDef.ColumnDefs))
-	template := `UPDATE "%s" SET %s WHERE "%s" = :primary_val`
 	for _, def := range recordDef.ColumnDefs {
 		updates = append(updates, `"`+def.ColumnName+`" = :`+def.BindingName)
 	}
 
 	updateStr := strings.Join(updates, ",")
-	sqlStr := fmt.Sprintf(template, table, updateStr, recordDef.PrimaryColumn)
+	sqlStr := fmt.Sprintf(UpdateTemplate, table, updateStr, recordDef.PrimaryColumn)
 
 	writer.commands <- &DBCommand{
 		QueryStr: sqlStr,
@@ -276,12 +279,10 @@ func (writer *Writer) insert(table string, recordDef *RecordDef) error {
 		valNames = append(valNames, `:`+def.BindingName)
 	}
 
-	template := `INSERT INTO "%s" (%s) VALUES (%s)`
-
 	// Preparing SQL string to insert
 	colsStr := strings.Join(colNames, ",")
 	valsStr := strings.Join(valNames, ",")
-	insertStr := fmt.Sprintf(template, table, colsStr, valsStr)
+	insertStr := fmt.Sprintf(InsertTemplate, table, colsStr, valsStr)
 
 	//	database.db.NamedExec(insertStr, recordDef.Values)
 	writer.commands <- &DBCommand{
