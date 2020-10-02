@@ -123,12 +123,19 @@ func (writer *Writer) run() {
 
 func (writer *Writer) ProcessData(record *transmitter.Record) error {
 
+	log.WithFields(log.Fields{
+		"method": record.Method,
+		"event":  record.EventName,
+		"table":  record.Table,
+	}).Info("Write record")
+
 	switch record.Method {
 	case transmitter.Method_DELETE:
 		return writer.DeleteRecord(record)
 	case transmitter.Method_UPDATE:
 		return writer.UpdateRecord(record)
 	case transmitter.Method_INSERT:
+		return writer.InsertRecord(record)
 	}
 
 	return nil
@@ -205,13 +212,7 @@ func (writer *Writer) UpdateRecord(record *transmitter.Record) error {
 		return nil
 	}
 
-	// TODO: performance issue because do twice for each record
-	err := writer.insert(record.Table, recordDef)
-	if err != nil {
-		return err
-	}
-
-	_, err = writer.update(record.Table, recordDef)
+	_, err := writer.update(record.Table, recordDef)
 	if err != nil {
 		return err
 	}
