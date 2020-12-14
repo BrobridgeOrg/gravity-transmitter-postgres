@@ -174,7 +174,8 @@ func (writer *Writer) GetDefinition(record *transmitter.Record) *RecordDef {
 		value := writer.GetValue(field.Value)
 
 		// Primary key
-		if field.IsPrimary == true {
+		//		if field.IsPrimary == true {
+		if record.PrimaryKey == field.Name {
 			recordDef.Values["primary_val"] = value
 			recordDef.HasPrimary = true
 			recordDef.PrimaryColumn = field.Name
@@ -222,10 +223,16 @@ func (writer *Writer) UpdateRecord(record *transmitter.Record) error {
 
 func (writer *Writer) DeleteRecord(record *transmitter.Record) error {
 
+	if record.PrimaryKey == "" {
+		// Do nothing
+		return nil
+	}
+
 	for _, field := range record.Fields {
 
 		// Primary key
-		if field.IsPrimary == true {
+		//		if field.IsPrimary == true {
+		if record.PrimaryKey == field.Name {
 
 			value := writer.GetValue(field.Value)
 
@@ -272,7 +279,10 @@ func (writer *Writer) insert(table string, recordDef *RecordDef) error {
 	colNames := make([]string, 0, paramLength)
 	colNames = append(colNames, recordDef.PrimaryColumn)
 	valNames := make([]string, 0, paramLength)
-	valNames = append(valNames, ":primary_val")
+
+	if recordDef.HasPrimary {
+		valNames = append(valNames, ":primary_val")
+	}
 
 	// Preparing columns and bindings
 	for _, def := range recordDef.ColumnDefs {
