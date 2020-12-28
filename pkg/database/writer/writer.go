@@ -2,6 +2,7 @@ package writer
 
 import (
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -160,7 +161,7 @@ func (writer *Writer) GetValue(value *transmitter.Value) interface{} {
 	return value.Value
 }
 
-func (writer *Writer) GetDefinition(record *transmitter.Record) *RecordDef {
+func (writer *Writer) GetDefinition(record *transmitter.Record) (*RecordDef, error) {
 
 	recordDef := &RecordDef{
 		HasPrimary: false,
@@ -194,26 +195,40 @@ func (writer *Writer) GetDefinition(record *transmitter.Record) *RecordDef {
 		})
 	}
 
-	return recordDef
+	if len(record.PrimaryKey) > 0 && !recordDef.HasPrimary {
+		log.WithFields(log.Fields{
+			"column": record.PrimaryKey,
+		}).Error("Not found primary key")
+
+		return nil, errors.New("Not found primary key")
+	}
+
+	return recordDef, nil
 }
 
 func (writer *Writer) InsertRecord(record *transmitter.Record) error {
 
-	recordDef := writer.GetDefinition(record)
+	recordDef, err := writer.GetDefinition(record)
+	if err != nil {
+		return err
+	}
 
 	return writer.insert(record.Table, recordDef)
 }
 
 func (writer *Writer) UpdateRecord(record *transmitter.Record) error {
 
-	recordDef := writer.GetDefinition(record)
+	recordDef, err := writer.GetDefinition(record)
+	if err != nil {
+		return err
+	}
 
 	// Ignore if no primary key
 	if recordDef.HasPrimary == false {
 		return nil
 	}
 
-	_, err := writer.update(record.Table, recordDef)
+	_, err = writer.update(record.Table, recordDef)
 	if err != nil {
 		return err
 	}
@@ -273,14 +288,17 @@ func (writer *Writer) update(table string, recordDef *RecordDef) (bool, error) {
 
 func (writer *Writer) insert(table string, recordDef *RecordDef) error {
 
-	paramLength := len(recordDef.ColumnDefs) + 1
+	paramLength := len(recordDef.ColumnDefs)
+	if recordDef.HasPrimary {
+		paramLength++
+	}
 
 	// Allocation
 	colNames := make([]string, 0, paramLength)
-	colNames = append(colNames, recordDef.PrimaryColumn)
 	valNames := make([]string, 0, paramLength)
 
 	if recordDef.HasPrimary {
+		colNames = append(colNames, `"`+recordDef.PrimaryColumn+`"`)
 		valNames = append(valNames, ":primary_val")
 	}
 
