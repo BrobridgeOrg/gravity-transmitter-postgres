@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 
@@ -146,7 +147,7 @@ func (writer *Writer) GetValue(value *transmitter.Value) interface{} {
 
 	switch value.Type {
 	case transmitter.DataType_FLOAT64:
-		return float64(binary.LittleEndian.Uint64(value.Value))
+		return math.Float64frombits(binary.LittleEndian.Uint64(value.Value))
 	case transmitter.DataType_INT64:
 		return int64(binary.LittleEndian.Uint64(value.Value))
 	case transmitter.DataType_UINT64:
@@ -172,6 +173,8 @@ func (writer *Writer) GetDefinition(record *transmitter.Record) (*RecordDef, err
 	// Scanning fields
 	for n, field := range record.Fields {
 
+		log.Info(field.Name)
+		log.Info(field.Value)
 		value := writer.GetValue(field.Value)
 
 		// Primary key
