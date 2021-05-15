@@ -173,8 +173,6 @@ func (writer *Writer) GetDefinition(record *transmitter.Record) (*RecordDef, err
 	// Scanning fields
 	for n, field := range record.Fields {
 
-		log.Info(field.Name)
-		log.Info(field.Value)
 		value := writer.GetValue(field.Value)
 
 		// Primary key

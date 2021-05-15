@@ -1,5 +1,12 @@
+[gravity]
+subscriber_id = "postgres_transmitter"
+host = "0.0.0.0:32803"
+
 [service]
 port = 44143
+
+[rules]
+subscription = "./settings/subscriptions.json"
 
 [database]
 host = "0.0.0.0"
