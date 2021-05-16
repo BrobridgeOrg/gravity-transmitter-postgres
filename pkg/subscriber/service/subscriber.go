@@ -4,19 +4,29 @@ import (
 	"encoding/json"
 	"io/ioutil"
 	"os"
+	"sync"
 	"time"
 
-	pb "github.com/BrobridgeOrg/gravity-api/service/transmitter"
 	"github.com/BrobridgeOrg/gravity-sdk/core"
-	gravity_transmitter "github.com/BrobridgeOrg/gravity-sdk/transmitter"
+	gravity_subscriber "github.com/BrobridgeOrg/gravity-sdk/subscriber"
+	gravity_sdk_types_event "github.com/BrobridgeOrg/gravity-sdk/types/event"
+	gravity_sdk_types_projection "github.com/BrobridgeOrg/gravity-sdk/types/projection"
+	gravity_sdk_types_record "github.com/BrobridgeOrg/gravity-sdk/types/record"
 	"github.com/BrobridgeOrg/gravity-transmitter-postgres/pkg/app"
+	"github.com/jinzhu/copier"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
+var projectionPool = sync.Pool{
+	New: func() interface{} {
+		return &gravity_sdk_types_projection.Projection{}
+	},
+}
+
 type Subscriber struct {
 	app        app.App
-	subscriber *gravity_transmitter.Subscriber
+	subscriber *gravity_subscriber.Subscriber
 	ruleConfig *RuleConfig
 }
 
@@ -68,9 +78,9 @@ func (subscriber *Subscriber) Init() error {
 	}).Info("Initializing gravity subscriber")
 
 	// Initializing gravity subscriber and connecting to server
-	options := gravity_transmitter.NewOptions()
+	options := gravity_subscriber.NewOptions()
 	options.Verbose = true
-	subscriber.subscriber = gravity_transmitter.NewSubscriber(options)
+	subscriber.subscriber = gravity_subscriber.NewSubscriber(options)
 	opts := core.NewOptions()
 	err = subscriber.subscriber.Connect(host, opts)
 	if err != nil {
@@ -86,23 +96,10 @@ func (subscriber *Subscriber) Init() error {
 	}
 
 	// Subscribe to collections
-	collections := make([]string, 0, len(subscriber.ruleConfig.Subscriptions))
-	for col, _ := range subscriber.ruleConfig.Subscriptions {
-		log.WithFields(log.Fields{
-			"collection": col,
-		}).Info("Subscribe to collection")
-		collections = append(collections, col)
+	err = subscriber.subscriber.SubscribeToCollections(subscriber.ruleConfig.Subscriptions)
+	if err != nil {
+		return err
 	}
-
-	if len(collections) > 0 {
-		err = subscriber.subscriber.AddCollections(collections)
-		if err != nil {
-			return err
-		}
-	}
-
-	// Table mapping
-	subscriber.subscriber.SetCollectionMap(subscriber.ruleConfig.Subscriptions)
 
 	return nil
 }
@@ -118,15 +115,46 @@ func (subscriber *Subscriber) Run() error {
 
 	writer := subscriber.app.GetWriter()
 	log.WithFields(log.Fields{}).Info("Starting to fetch data from gravity...")
-	_, err = subscriber.subscriber.Subscribe(func(record *pb.Record) {
+	_, err = subscriber.subscriber.Subscribe(func(event *gravity_sdk_types_event.Event) {
 
-		for {
-			err := writer.ProcessData(record)
-			if err == nil {
-				break
+		pj := projectionPool.Get().(*gravity_sdk_types_projection.Projection)
+		defer projectionPool.Put(pj)
+
+		// Parsing data
+		err = gravity_sdk_types_projection.Unmarshal(event.Data, pj)
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
+		// Getting tables for specific collection
+		tables, ok := subscriber.ruleConfig.Subscriptions[pj.Collection]
+		if !ok {
+			return
+		}
+
+		// Convert projection to record
+		record, err := pj.ToRecord()
+		if err != nil {
+			log.Error(err)
+			return
+		}
+
+		// Save record to each table
+		for _, tableName := range tables {
+			var rs gravity_sdk_types_record.Record
+			copier.Copy(&rs, record)
+			rs.Table = tableName
+
+			// TODO: using batch mechanism to improve performance
+			for {
+				err := writer.ProcessData(&rs)
+				if err == nil {
+					break
+				}
+
+				<-time.After(time.Second * 5)
 			}
-
-			<-time.After(time.Second * 5)
 		}
 	})
 	if err != nil {

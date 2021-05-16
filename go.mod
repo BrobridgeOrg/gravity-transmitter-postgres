@@ -6,8 +6,9 @@ require (
 	github.com/BrobridgeOrg/gravity-api v0.2.4
 	github.com/BrobridgeOrg/gravity-sdk v0.0.2
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
-	github.com/jmoiron/sqlx v1.2.0
-	github.com/lib/pq v1.8.0
+	github.com/jinzhu/copier v0.3.0
+	github.com/jmoiron/sqlx v1.3.4
+	github.com/lib/pq v1.10.1
 	github.com/sirupsen/logrus v1.7.0
 	github.com/soheilhy/cmux v0.1.4
 	github.com/spf13/viper v1.7.1

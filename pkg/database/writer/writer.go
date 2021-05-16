@@ -1,14 +1,12 @@
 package writer
 
 import (
-	"encoding/binary"
 	"errors"
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 
-	transmitter "github.com/BrobridgeOrg/gravity-api/service/transmitter"
+	gravity_sdk_types_record "github.com/BrobridgeOrg/gravity-sdk/types/record"
 	"github.com/jmoiron/sqlx"
 	_ "github.com/lib/pq"
 	log "github.com/sirupsen/logrus"
@@ -28,19 +26,6 @@ type DatabaseInfo struct {
 	Username string `json:"username"`
 	Password string `json:"password"`
 	DbName   string `json:"dbname"`
-}
-
-type RecordDef struct {
-	HasPrimary    bool
-	PrimaryColumn string
-	Values        map[string]interface{}
-	ColumnDefs    []*ColumnDef
-}
-
-type ColumnDef struct {
-	ColumnName  string
-	BindingName string
-	Value       interface{}
 }
 
 type DBCommand struct {
@@ -123,7 +108,7 @@ func (writer *Writer) run() {
 	}
 }
 
-func (writer *Writer) ProcessData(record *transmitter.Record) error {
+func (writer *Writer) ProcessData(record *gravity_sdk_types_record.Record) error {
 
 	log.WithFields(log.Fields{
 		"method": record.Method,
@@ -132,48 +117,29 @@ func (writer *Writer) ProcessData(record *transmitter.Record) error {
 	}).Info("Write record")
 
 	switch record.Method {
-	case transmitter.Method_DELETE:
+	case gravity_sdk_types_record.Method_DELETE:
 		return writer.DeleteRecord(record)
-	case transmitter.Method_UPDATE:
+	case gravity_sdk_types_record.Method_UPDATE:
 		return writer.UpdateRecord(record)
-	case transmitter.Method_INSERT:
+	case gravity_sdk_types_record.Method_INSERT:
 		return writer.InsertRecord(record)
 	}
 
 	return nil
 }
 
-func (writer *Writer) GetValue(value *transmitter.Value) interface{} {
+func (writer *Writer) GetDefinition(record *gravity_sdk_types_record.Record) (*gravity_sdk_types_record.RecordDef, error) {
 
-	switch value.Type {
-	case transmitter.DataType_FLOAT64:
-		return math.Float64frombits(binary.LittleEndian.Uint64(value.Value))
-	case transmitter.DataType_INT64:
-		return int64(binary.LittleEndian.Uint64(value.Value))
-	case transmitter.DataType_UINT64:
-		return uint64(binary.LittleEndian.Uint64(value.Value))
-	case transmitter.DataType_BOOLEAN:
-		return int8(value.Value[0]) & 1
-	case transmitter.DataType_STRING:
-		return string(value.Value)
-	}
-
-	// binary
-	return value.Value
-}
-
-func (writer *Writer) GetDefinition(record *transmitter.Record) (*RecordDef, error) {
-
-	recordDef := &RecordDef{
+	recordDef := &gravity_sdk_types_record.RecordDef{
 		HasPrimary: false,
 		Values:     make(map[string]interface{}),
-		ColumnDefs: make([]*ColumnDef, 0, len(record.Fields)),
+		ColumnDefs: make([]*gravity_sdk_types_record.ColumnDef, 0, len(record.Fields)),
 	}
 
 	// Scanning fields
 	for n, field := range record.Fields {
 
-		value := writer.GetValue(field.Value)
+		value := gravity_sdk_types_record.GetValue(field.Value)
 
 		// Primary key
 		//		if field.IsPrimary == true {
@@ -189,7 +155,7 @@ func (writer *Writer) GetDefinition(record *transmitter.Record) (*RecordDef, err
 		recordDef.Values[bindingName] = value
 
 		// Store definition
-		recordDef.ColumnDefs = append(recordDef.ColumnDefs, &ColumnDef{
+		recordDef.ColumnDefs = append(recordDef.ColumnDefs, &gravity_sdk_types_record.ColumnDef{
 			ColumnName:  field.Name,
 			Value:       field.Name,
 			BindingName: bindingName,
@@ -207,7 +173,7 @@ func (writer *Writer) GetDefinition(record *transmitter.Record) (*RecordDef, err
 	return recordDef, nil
 }
 
-func (writer *Writer) InsertRecord(record *transmitter.Record) error {
+func (writer *Writer) InsertRecord(record *gravity_sdk_types_record.Record) error {
 
 	recordDef, err := writer.GetDefinition(record)
 	if err != nil {
@@ -217,7 +183,7 @@ func (writer *Writer) InsertRecord(record *transmitter.Record) error {
 	return writer.insert(record.Table, recordDef)
 }
 
-func (writer *Writer) UpdateRecord(record *transmitter.Record) error {
+func (writer *Writer) UpdateRecord(record *gravity_sdk_types_record.Record) error {
 
 	recordDef, err := writer.GetDefinition(record)
 	if err != nil {
@@ -237,7 +203,7 @@ func (writer *Writer) UpdateRecord(record *transmitter.Record) error {
 	return nil
 }
 
-func (writer *Writer) DeleteRecord(record *transmitter.Record) error {
+func (writer *Writer) DeleteRecord(record *gravity_sdk_types_record.Record) error {
 
 	if record.PrimaryKey == "" {
 		// Do nothing
@@ -250,7 +216,7 @@ func (writer *Writer) DeleteRecord(record *transmitter.Record) error {
 		//		if field.IsPrimary == true {
 		if record.PrimaryKey == field.Name {
 
-			value := writer.GetValue(field.Value)
+			value := gravity_sdk_types_record.GetValue(field.Value)
 
 			sqlStr := fmt.Sprintf(DeleteTemplate, record.Table, field.Name)
 
@@ -268,7 +234,7 @@ func (writer *Writer) DeleteRecord(record *transmitter.Record) error {
 	return nil
 }
 
-func (writer *Writer) update(table string, recordDef *RecordDef) (bool, error) {
+func (writer *Writer) update(table string, recordDef *gravity_sdk_types_record.RecordDef) (bool, error) {
 
 	// Preparing SQL string
 	updates := make([]string, 0, len(recordDef.ColumnDefs))
@@ -287,7 +253,7 @@ func (writer *Writer) update(table string, recordDef *RecordDef) (bool, error) {
 	return false, nil
 }
 
-func (writer *Writer) insert(table string, recordDef *RecordDef) error {
+func (writer *Writer) insert(table string, recordDef *gravity_sdk_types_record.RecordDef) error {
 
 	paramLength := len(recordDef.ColumnDefs)
 	if recordDef.HasPrimary {
