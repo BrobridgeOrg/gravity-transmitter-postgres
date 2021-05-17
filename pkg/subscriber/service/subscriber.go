@@ -130,7 +130,7 @@ func (subscriber *Subscriber) Init() error {
 
 	// Initializing gravity subscriber and connecting to server
 	options := gravity_subscriber.NewOptions()
-	options.Verbose = true
+	options.Verbose = false
 	options.StateStore = subscriber.stateStore
 
 	subscriber.subscriber = gravity_subscriber.NewSubscriber(options)
