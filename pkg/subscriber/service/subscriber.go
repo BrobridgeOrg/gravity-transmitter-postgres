@@ -37,6 +37,50 @@ func NewSubscriber(a app.App) *Subscriber {
 	}
 }
 
+func (subscriber *Subscriber) processData(msg *gravity_subscriber.Message) error {
+
+	pj := projectionPool.Get().(*gravity_sdk_types_projection.Projection)
+	defer projectionPool.Put(pj)
+
+	// Parsing data
+	err := gravity_sdk_types_projection.Unmarshal(msg.Event.Data, pj)
+	if err != nil {
+		return err
+	}
+
+	// Getting tables for specific collection
+	tables, ok := subscriber.ruleConfig.Subscriptions[pj.Collection]
+	if !ok {
+		return err
+	}
+
+	// Convert projection to record
+	record, err := pj.ToRecord()
+	if err != nil {
+		return err
+	}
+
+	// Save record to each table
+	writer := subscriber.app.GetWriter()
+	for _, tableName := range tables {
+		var rs gravity_sdk_types_record.Record
+		copier.Copy(&rs, record)
+		rs.Table = tableName
+
+		// TODO: using batch mechanism to improve performance
+		for {
+			err := writer.ProcessData(&rs)
+			if err == nil {
+				break
+			}
+
+			<-time.After(time.Second * 5)
+		}
+	}
+
+	return nil
+}
+
 func (subscriber *Subscriber) LoadConfigFile(filename string) (*RuleConfig, error) {
 
 	// Open and read config file
@@ -110,61 +154,24 @@ func (subscriber *Subscriber) Init() error {
 		return err
 	}
 
+	log.WithFields(log.Fields{}).Info("Subscribing to gravity pipelines...")
+	err = subscriber.subscriber.AddAllPipelines()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (subscriber *Subscriber) Run() error {
 
-	log.WithFields(log.Fields{}).Info("Subscribing to gravity pipelines...")
-	err := subscriber.subscriber.AddAllPipelines()
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
-	writer := subscriber.app.GetWriter()
 	log.WithFields(log.Fields{}).Info("Starting to fetch data from gravity...")
-	//_, err = subscriber.subscriber.Subscribe(func(event *gravity_sdk_types_event.Event) {
-	_, err = subscriber.subscriber.Subscribe(func(msg *gravity_subscriber.Message) {
+	_, err := subscriber.subscriber.Subscribe(func(msg *gravity_subscriber.Message) {
 
-		pj := projectionPool.Get().(*gravity_sdk_types_projection.Projection)
-		defer projectionPool.Put(pj)
-
-		// Parsing data
-		err = gravity_sdk_types_projection.Unmarshal(msg.Event.Data, pj)
+		err := subscriber.processData(msg)
 		if err != nil {
 			log.Error(err)
 			return
-		}
-
-		// Getting tables for specific collection
-		tables, ok := subscriber.ruleConfig.Subscriptions[pj.Collection]
-		if !ok {
-			return
-		}
-
-		// Convert projection to record
-		record, err := pj.ToRecord()
-		if err != nil {
-			log.Error(err)
-			return
-		}
-
-		// Save record to each table
-		for _, tableName := range tables {
-			var rs gravity_sdk_types_record.Record
-			copier.Copy(&rs, record)
-			rs.Table = tableName
-
-			// TODO: using batch mechanism to improve performance
-			for {
-				err := writer.ProcessData(&rs)
-				if err == nil {
-					break
-				}
-
-				<-time.After(time.Second * 5)
-			}
 		}
 
 		msg.Ack()
