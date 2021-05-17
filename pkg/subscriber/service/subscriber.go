@@ -9,7 +9,7 @@ import (
 
 	"github.com/BrobridgeOrg/gravity-sdk/core"
 	gravity_subscriber "github.com/BrobridgeOrg/gravity-sdk/subscriber"
-	gravity_sdk_types_event "github.com/BrobridgeOrg/gravity-sdk/types/event"
+	gravity_state_store "github.com/BrobridgeOrg/gravity-sdk/subscriber/state_store"
 	gravity_sdk_types_projection "github.com/BrobridgeOrg/gravity-sdk/types/projection"
 	gravity_sdk_types_record "github.com/BrobridgeOrg/gravity-sdk/types/record"
 	"github.com/BrobridgeOrg/gravity-transmitter-postgres/pkg/app"
@@ -26,6 +26,7 @@ var projectionPool = sync.Pool{
 
 type Subscriber struct {
 	app        app.App
+	stateStore *gravity_state_store.StateStore
 	subscriber *gravity_subscriber.Subscriber
 	ruleConfig *RuleConfig
 }
@@ -71,6 +72,12 @@ func (subscriber *Subscriber) Init() error {
 
 	subscriber.ruleConfig = ruleConfig
 
+	// Load state
+	err = subscriber.InitStateStore()
+	if err != nil {
+		return err
+	}
+
 	host := viper.GetString("gravity.host")
 
 	log.WithFields(log.Fields{
@@ -80,6 +87,8 @@ func (subscriber *Subscriber) Init() error {
 	// Initializing gravity subscriber and connecting to server
 	options := gravity_subscriber.NewOptions()
 	options.Verbose = true
+	options.StateStore = subscriber.stateStore
+
 	subscriber.subscriber = gravity_subscriber.NewSubscriber(options)
 	opts := core.NewOptions()
 	err = subscriber.subscriber.Connect(host, opts)
@@ -115,13 +124,14 @@ func (subscriber *Subscriber) Run() error {
 
 	writer := subscriber.app.GetWriter()
 	log.WithFields(log.Fields{}).Info("Starting to fetch data from gravity...")
-	_, err = subscriber.subscriber.Subscribe(func(event *gravity_sdk_types_event.Event) {
+	//_, err = subscriber.subscriber.Subscribe(func(event *gravity_sdk_types_event.Event) {
+	_, err = subscriber.subscriber.Subscribe(func(msg *gravity_subscriber.Message) {
 
 		pj := projectionPool.Get().(*gravity_sdk_types_projection.Projection)
 		defer projectionPool.Put(pj)
 
 		// Parsing data
-		err = gravity_sdk_types_projection.Unmarshal(event.Data, pj)
+		err = gravity_sdk_types_projection.Unmarshal(msg.Event.Data, pj)
 		if err != nil {
 			log.Error(err)
 			return
@@ -156,6 +166,8 @@ func (subscriber *Subscriber) Run() error {
 				<-time.After(time.Second * 5)
 			}
 		}
+
+		msg.Ack()
 	})
 	if err != nil {
 		log.Error(err)

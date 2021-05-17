@@ -2,6 +2,9 @@
 subscriber_id = "postgres_transmitter"
 host = "0.0.0.0:32803"
 
+[subscriber]
+state_store = "./statestore"
+
 [service]
 port = 44143
 
