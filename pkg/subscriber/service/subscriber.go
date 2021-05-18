@@ -142,7 +142,7 @@ func (subscriber *Subscriber) Init() error {
 
 	// Register subscriber
 	log.Info("Registering subscriber")
-	subscriberID := viper.GetString("gravity.subscriber_id")
+	subscriberID := viper.GetString("subscriber.subscriber_id")
 	err = subscriber.subscriber.Register(subscriberID)
 	if err != nil {
 		return err
