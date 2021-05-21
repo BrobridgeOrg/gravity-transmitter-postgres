@@ -15,7 +15,7 @@ func (subscriber *Subscriber) InitStateStore() error {
 
 	// Initializing state store
 	options := gravity_state_store.NewOptions()
-	options.StoreOptions.DatabasePath = storePath
+	options.Core.StoreOptions.DatabasePath = storePath
 	stateStore := gravity_state_store.NewStateStore(options)
 	err := stateStore.Initialize()
 	if err != nil {
