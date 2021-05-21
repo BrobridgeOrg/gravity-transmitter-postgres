@@ -4,6 +4,7 @@ go 1.13
 
 require (
 	github.com/BrobridgeOrg/gravity-api v0.2.14
+	github.com/BrobridgeOrg/gravity-exporter-nats v0.0.0-20201103202047-d04b1add3bae // indirect
 	github.com/BrobridgeOrg/gravity-sdk v0.0.8
 	github.com/go-sql-driver/mysql v1.5.0 // indirect
 	github.com/jinzhu/copier v0.3.0

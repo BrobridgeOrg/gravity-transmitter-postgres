@@ -5,6 +5,7 @@ host = "0.0.0.0:32803"
 subscriber_id = "postgres_transmitter"
 subscriber_name = "Postgres Transmitter"
 state_store = "./statestore"
+worker_count = 16
 
 [rules]
 subscription = "./settings/subscriptions.json"

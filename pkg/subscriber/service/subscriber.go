@@ -129,9 +129,11 @@ func (subscriber *Subscriber) Init() error {
 	}).Info("Initializing gravity subscriber")
 
 	// Initializing gravity subscriber and connecting to server
+	viper.SetDefault("subscriber.worker_count", 4)
 	options := gravity_subscriber.NewOptions()
 	options.Verbose = false
 	options.StateStore = subscriber.stateStore
+	options.WorkerCount = viper.GetInt("subscriber.worker_count")
 
 	subscriber.subscriber = gravity_subscriber.NewSubscriber(options)
 	opts := core.NewOptions()
