@@ -5,7 +5,12 @@ host = "0.0.0.0:32803"
 subscriber_id = "postgres_transmitter"
 subscriber_name = "Postgres Transmitter"
 state_store = "./statestore"
-worker_count = 16
+worker_count = 4
+verbose = true
+
+[initial_load]
+enabled = true
+omitted_count = 100000
 
 [rules]
 subscription = "./settings/subscriptions.json"
