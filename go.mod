@@ -3,7 +3,7 @@ module github.com/BrobridgeOrg/gravity-transmitter-postgres
 go 1.13
 
 require (
-	github.com/BrobridgeOrg/gravity-sdk v0.0.18
+	github.com/BrobridgeOrg/gravity-sdk v0.0.19
 	github.com/jinzhu/copier v0.3.0
 	github.com/jmoiron/sqlx v1.3.4
 	github.com/lib/pq v1.10.1
