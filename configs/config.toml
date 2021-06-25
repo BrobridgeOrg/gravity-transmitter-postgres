@@ -8,6 +8,8 @@ subscriber_name = "Postgres Transmitter"
 state_store = "./statestore"
 worker_count = 4
 verbose = true
+pipeline_start = 0
+pipeline_end = -1
 
 [initial_load]
 enabled = true
