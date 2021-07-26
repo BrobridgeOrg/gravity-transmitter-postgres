@@ -12,8 +12,8 @@ pipeline_start = 0
 pipeline_end = -1
 
 # Authentication
-app_id = ""
-access_key = ""
+appID = ""
+accessKey = ""
 
 [initial_load]
 enabled = true
