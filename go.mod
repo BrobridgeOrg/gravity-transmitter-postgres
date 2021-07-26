@@ -13,6 +13,6 @@ require (
 	google.golang.org/grpc v1.32.0 // indirect
 )
 
-//replace github.com/BrobridgeOrg/gravity-api => ../gravity-api
+replace github.com/BrobridgeOrg/gravity-api => ../gravity-api
 
-//replace github.com/BrobridgeOrg/gravity-sdk => ../gravity-sdk
+replace github.com/BrobridgeOrg/gravity-sdk => ../gravity-sdk
