@@ -12,7 +12,7 @@ pipeline_start = 0
 pipeline_end = -1
 
 # Authentication
-appID = ""
+appID = "gravity"
 accessKey = ""
 
 [initial_load]
