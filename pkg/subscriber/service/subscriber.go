@@ -157,7 +157,7 @@ func (subscriber *Subscriber) Init() error {
 	options.InitialLoad.OmittedCount = viper.GetUint64("initial_load.omitted_count")
 
 	// Loading access key
-	viper.SetDefault("subscriber.appID", "gravity")
+	viper.SetDefault("subscriber.appID", "anonymous")
 	viper.SetDefault("subscriber.accessKey", "")
 	options.Key = keyring.NewKey(viper.GetString("subscriber.appID"), viper.GetString("subscriber.accessKey"))
 
