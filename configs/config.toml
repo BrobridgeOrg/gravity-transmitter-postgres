@@ -3,21 +3,21 @@ domain = "gravity"
 host = "0.0.0.0:32803"
 
 [subscriber]
-subscriber_id = "postgres_transmitter"
-subscriber_name = "Postgres Transmitter"
-state_store = "./statestore"
-worker_count = 4
+subscriberID = "postgres_transmitter"
+subscriberName = "Postgres Transmitter"
+stateStore = "./statestore"
+workerCount = 4
 verbose = true
-pipeline_start = 0
-pipeline_end = -1
+pipelineStart = 0
+pipelineEnd = -1
 
 # Authentication
 appID = "anonymous"
 accessKey = ""
 
-[initial_load]
+[initialLoad]
 enabled = true
-omitted_count = 100000
+omittedCount = 100000
 
 [rules]
 subscription = "./settings/subscriptions.json"
