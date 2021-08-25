@@ -138,6 +138,7 @@ func (subscriber *Subscriber) Init() error {
 	options.Domain = domain
 	options.StateStore = subscriber.stateStore
 	options.WorkerCount = viper.GetInt("subscriber.workerCount")
+	options.ChunkSize = viper.GetInt("subscriber.chunkSize")
 	options.InitialLoad.Enabled = viper.GetBool("initialLoad.enabled")
 	options.InitialLoad.OmittedCount = viper.GetUint64("initialLoad.omittedCount")
 
